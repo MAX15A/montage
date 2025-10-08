@@ -1,0 +1,461 @@
+
+
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>管理ダッシュボード｜出張取り付けサービス</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="顧客・車両・予約・請求の管理ダッシュボード。検索、ステータス更新、請求作成、CSVエクスポートに対応。">
+  <style>
+    :root {
+      --bg: #0f172a; --surface: #111827; --card: #1f2937; --text: #e5e7eb; --muted: #94a3b8;
+      --accent: #3b82f6; --accent2: #ef4444; --ok: #22c55e; --warn: #f59e0b;
+      --radius: 14px; --radius-lg: 22px; --shadow: 0 12px 28px rgba(0,0,0,0.35);
+      --maxw: 1200px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--text); }
+    body { font-family: system-ui, -apple-system, "Noto Sans JP", Meiryo, sans-serif; line-height:1.6; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .container { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 20px; }
+
+    header { position: sticky; top:0; z-index:50; background: rgba(17,24,39,0.85); backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(255,255,255,0.08); }
+    .nav { display:flex; justify-content:space-between; align-items:center; padding:14px 20px; }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:700; }
+    .logo { width:36px; height:36px; display:grid; place-items:center; border-radius:8px;
+      background: linear-gradient(135deg,#2563eb,#3b82f6); box-shadow: var(--shadow); }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; }
+    .tab { padding:8px 12px; border-radius:999px; background: rgba(255,255,255,0.06);
+      border:1px solid rgba(255,255,255,0.12); cursor:pointer; }
+    .tab.active { background: linear-gradient(135deg,#2563eb,#3b82f6); border:none; font-weight:700; }
+
+    section { padding: 26px 0; }
+    .card { background: var(--card); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+    .section-head { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; margin-bottom:12px; }
+    .section-head h2 { margin:0; font-size: clamp(22px,3.4vw,30px); }
+    .section-head p { color:var(--muted); margin:6px 0 0; }
+
+    .grid { display:grid; gap:14px; grid-template-columns: repeat(12, 1fr); }
+    .col-12 { grid-column: span 12; }
+    .col-6 { grid-column: span 6; }
+    .col-4 { grid-column: span 4; }
+    @media (max-width: 900px) { .col-6, .col-4 { grid-column: span 12; } }
+
+    .metrics { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; }
+    @media (max-width: 900px) { .metrics { grid-template-columns: 1fr 1fr; } }
+    .metric { background:#111b2a; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px; }
+    .metric .label { color:var(--muted); font-size:13px; }
+    .metric .value { font-size:24px; font-weight:800; letter-spacing:0.3px; }
+
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:8px 12px;
+      border-radius:8px; border:1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.06); color:var(--text);
+      cursor:pointer; transition: transform .12s ease, background .2s ease; }
+    .btn:hover { transform: translateY(-1px); background: rgba(255,255,255,0.1); }
+    .btn.primary { background: linear-gradient(135deg,#2563eb,#3b82f6); border:none; color:#fff; font-weight:700; }
+    .btn.warn { background: #3b2f10; border-color: #f59e0b; color:#f59e0b; }
+    .btn.danger { background: #2a1114; border-color: #ef4444; color:#ef4444; }
+
+    input, select, textarea {
+      padding: 10px 12px; background:#0b1220; color:var(--text); border:1px solid rgba(255,255,255,0.1);
+      border-radius:10px; outline:none; transition:border-color .2s ease, box-shadow .2s ease;
+    }
+    input:focus, select:focus, textarea:focus { border-color: rgba(59,130,246,0.6); box-shadow: 0 0 0 4px rgba(59,130,246,0.15); }
+    .table-wrap { overflow:auto; border:1px solid rgba(255,255,255,0.08); border-radius:12px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 14px; vertical-align: top; }
+    th { text-align:left; color:#cbd5e1; background: rgba(255,255,255,0.04); position: sticky; top:0; }
+    tr:hover td { background: rgba(255,255,255,0.03); }
+
+    .status { padding:4px 8px; border-radius:999px; font-size:12px; display:inline-block; }
+    .st-new { background:#293042; color:#cbd5e1; }
+    .st-confirmed { background:#133a7a; color:#cbd5e1; }
+    .st-onroute { background:#3b2a10; color:#f59e0b; }
+    .st-working { background:#2f3b10; color:#f59e0b; }
+    .st-done { background:#0f3a1a; color:#22c55e; }
+    .st-invoiced { background:#312e52; color:#cbd5e1; }
+    .st-unpaid { background:#3a1114; color:#ef4444; }
+    .st-paid { background:#0f3a1a; color:#22c55e; }
+
+    .muted { color:var(--muted); font-size:13px; }
+    .hidden { display:none; }
+    .toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(17,24,39,0.9); border:1px solid rgba(255,255,255,0.12); color:#cbd5e1; padding:10px 14px;
+      border-radius: 999px; box-shadow: var(--shadow); z-index:9999; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="nav container">
+    <div class="brand"><div class="logo">🛠️</div><div>管理ダッシュボード</div></div>
+    <div class="tabs">
+      <div class="tab active" data-pane="dashboard">ダッシュボード</div>
+      <div class="tab" data-pane="customers">顧客</div>
+      <div class="tab" data-pane="reservations">予約</div>
+      <div class="tab" data-pane="invoices">請求</div>
+      <div class="tab" data-pane="settings">設定</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="dashboard" class="pane container">
+    <div class="section-head">
+      <h2>概要</h2>
+      <p>今日・今週の動きや未対応件数の把握に。</p>
+    </div>
+    <div class="metrics" id="metrics">
+      <div class="metric"><div class="label">今日の予約</div><div class="value" id="m_today">—</div></div>
+      <div class="metric"><div class="label">未対応（新規）</div><div class="value" id="m_new">—</div></div>
+      <div class="metric"><div class="label">未請求</div><div class="value" id="m_uninvoiced">—</div></div>
+      <div class="metric"><div class="label">未入金</div><div class="value" id="m_unpaid">—</div></div>
+    </div>
+    <div style="margin-top:12px;" class="muted">更新：<span id="m_updated">—</span></div>
+  </section>
+
+  <section id="customers" class="pane container hidden">
+    <div class="section-head">
+      <h2>顧客管理</h2>
+      <div class="toolbar">
+        <input id="custSearch" placeholder="氏名・メール・電話で検索">
+        <button class="btn" id="custReload">再読込</button>
+        <button class="btn" id="custExport">CSVエクスポート</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="custTable">
+        <thead><tr>
+          <th>顧客ID</th><th>氏名</th><th>電話</th><th>メール</th><th>住所</th><th>連絡手段</th><th>同意</th><th>更新</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="reservations" class="pane container hidden">
+    <div class="section-head">
+      <h2>予約管理</h2>
+      <div class="toolbar">
+        <input id="resSearch" placeholder="氏名・車種・住所・作業で検索">
+        <select id="resStatusFilter">
+          <option value="">すべて</option>
+          <option value="新規">新規</option>
+          <option value="確認済">確認済</option>
+          <option value="日程確定">日程確定</option>
+          <option value="出発">出発</option>
+          <option value="施工中">施工中</option>
+          <option value="完了">完了</option>
+          <option value="請求">請求</option>
+          <option value="未収">未収</option>
+          <option value="入金">入金</option>
+        </select>
+        <button class="btn" id="resReload">再読込</button>
+        <button class="btn" id="resExport">CSVエクスポート</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="resTable">
+        <thead><tr>
+          <th>案件ID</th><th>日付/時間帯</th><th>顧客</th><th>車両</th><th>住所</th><th>作業</th><th>出張費</th><th>ステータス</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="invoices" class="pane container hidden">
+    <div class="section-head">
+      <h2>請求管理</h2>
+      <div class="toolbar">
+        <input id="invSearch" placeholder="請求番号・顧客・メールで検索">
+        <select id="invStatusFilter">
+          <option value="">すべて</option>
+          <option value="未収">未収</option>
+          <option value="部分入金">部分入金</option>
+          <option value="入金">入金</option>
+        </select>
+        <button class="btn" id="invReload">再読込</button>
+        <button class="btn" id="invExport">CSVエクスポート</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="invTable">
+        <thead><tr>
+          <th>請求番号</th><th>予約ID</th><th>顧客</th><th>金額</th><th>期日</th><th>ステータス</th><th>PDF</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="settings" class="pane container hidden">
+    <div class="section-head">
+      <h2>設定</h2>
+      <p>価格ルール・テンプレ・キーなど。</p>
+    </div>
+    <div class="grid">
+      <div class="col-6 card">
+        <h3>価格ルール（参考）</h3>
+        <div class="muted">無料半径km / 10km加算額 / 高速・駐車の扱いはApps Script側で管理します。</div>
+        <div style="margin-top:8px;">
+          <button class="btn" id="pullRules">ルール読込</button>
+          <pre id="rulesBox" class="muted" style="white-space:pre-wrap; margin-top:8px;"></pre>
+        </div>
+      </div>
+      <div class="col-6 card">
+        <h3>テンプレ・フォルダ</h3>
+        <div class="muted">請求書PDFのテンプレID、保存フォルダIDはApps Script側で設定します。</div>
+        <div class="muted" style="margin-top:8px;">変更はスクリプト再デプロイが必要です。</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+  // ===== 設定（差し替え必須） =====
+  const SCRIPT_URL = 'https://script.google.com/macros/s/YOUR_DEPLOY_ID/exec';
+  const SECRET = 'CHANGE_ME_SECRET'; // Apps Script側と一致
+  // =================================
+
+  // タブ切替
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const pane = tab.dataset.pane;
+      document.querySelectorAll('.pane').forEach(p => p.classList.add('hidden'));
+      document.getElementById(pane).classList.remove('hidden');
+      if (pane === 'dashboard') loadDashboard();
+      if (pane === 'customers') loadCustomers();
+      if (pane === 'reservations') loadReservations();
+      if (pane === 'invoices') loadInvoices();
+    });
+  });
+
+  // トースト
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 2200);
+  }
+
+  // フェッチ共通
+  async function apiGet(params = {}) {
+    const url = new URL(SCRIPT_URL);
+    Object.entries(params).forEach(([k,v]) => url.searchParams.set(k, v));
+    url.searchParams.set('secret', SECRET);
+    const res = await fetch(url.toString(), { method: 'GET' });
+    return res.json();
+  }
+  async function apiPost(action, payload = {}) {
+    const body = { action, secret: SECRET, ...payload };
+    const res = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    return res.json();
+  }
+
+  // ダッシュボード
+  async function loadDashboard() {
+    try {
+      const json = await apiGet({ action: 'dashboard' });
+      document.getElementById('m_today').textContent = json.today || 0;
+      document.getElementById('m_new').textContent = json.new || 0;
+      document.getElementById('m_uninvoiced').textContent = json.uninvoiced || 0;
+      document.getElementById('m_unpaid').textContent = json.unpaid || 0;
+      document.getElementById('m_updated').textContent = new Date().toLocaleString('ja-JP');
+    } catch (e) {
+      toast('ダッシュボード取得に失敗しました');
+    }
+  }
+
+  // 顧客一覧
+  let customers = [];
+  async function loadCustomers() {
+    try {
+      const json = await apiGet({ action: 'listCustomers' });
+      customers = json.items || [];
+      renderCustomers(customers);
+    } catch (e) {
+      toast('顧客データ取得に失敗しました');
+    }
+  }
+  function renderCustomers(items) {
+    const q = (document.getElementById('custSearch').value || '').toLowerCase();
+    const rows = items.filter(x => {
+      const text = [x.name, x.email, x.phone].join(' ').toLowerCase();
+      return !q || text.includes(q);
+    }).map(x => `
+      <tr>
+        <td>${x.customer_id}</td>
+        <td>${escapeHtml(x.name || '')}</td>
+        <td>${escapeHtml(x.phone || '')}</td>
+        <td>${escapeHtml(x.email || '')}</td>
+        <td>${escapeHtml([x.pref, x.addr1, x.addr2].filter(Boolean).join(' '))}</td>
+        <td>${escapeHtml(x.contact_pref || '')}</td>
+        <td>${x.consent_policy ? '✅' : '—'}</td>
+        <td class="muted">${escapeHtml(x.updated_at || '')}</td>
+      </tr>
+    `).join('');
+    document.querySelector('#custTable tbody').innerHTML = rows || `<tr><td colspan="8" class="muted">データがありません</td></tr>`;
+  }
+  document.getElementById('custSearch').addEventListener('input', () => renderCustomers(customers));
+  document.getElementById('custReload').addEventListener('click', loadCustomers);
+  document.getElementById('custExport').addEventListener('click', () => exportCSV(customers, 'customers.csv'));
+
+  // 予約一覧
+  let reservations = [];
+  async function loadReservations() {
+    try {
+      const json = await apiGet({ action: 'listReservations' });
+      reservations = json.items || [];
+      renderReservations(reservations);
+    } catch (e) {
+      toast('予約データ取得に失敗しました');
+    }
+  }
+  function renderReservations(items) {
+    const q = (document.getElementById('resSearch').value || '').toLowerCase();
+    const f = document.getElementById('resStatusFilter').value || '';
+    const rows = items.filter(x => {
+      const text = [x.customer_name, x.addr, x.vehicle_model, x.job].join(' ').toLowerCase();
+      const statusOk = !f || (x.status || '') === f;
+      return (!q || text.includes(q)) && statusOk;
+    }).map(x => `
+      <tr>
+        <td>${x.id}</td>
+        <td>${escapeHtml((x.date || '') + ' ' + (x.slot || ''))}</td>
+        <td>${escapeHtml(x.customer_name || '')}<div class="muted">${escapeHtml(x.phone || '')}</div></td>
+        <td>${escapeHtml([x.vehicle_brand, x.vehicle_model].filter(Boolean).join(' / '))}</td>
+        <td>${escapeHtml(x.addr || '')}</td>
+        <td>${escapeHtml(x.job || '')}</td>
+        <td>${formatJPY(x.travel_fee || 0)}</td>
+        <td>${renderStatusChip(x.status)}</td>
+        <td>
+          <button class="btn" onclick="changeStatus('${x.id}')">ステータス更新</button>
+          <button class="btn primary" onclick="quickInvoice('${x.id}')">請求作成</button>
+        </td>
+      </tr>
+    `).join('');
+    document.querySelector('#resTable tbody').innerHTML = rows || `<tr><td colspan="9" class="muted">データがありません</td></tr>`;
+  }
+  document.getElementById('resSearch').addEventListener('input', () => renderReservations(reservations));
+  document.getElementById('resStatusFilter').addEventListener('change', () => renderReservations(reservations));
+  document.getElementById('resReload').addEventListener('click', loadReservations);
+  document.getElementById('resExport').addEventListener('click', () => exportCSV(reservations, 'reservations.csv'));
+
+  // ステータス更新
+  async function changeStatus(resId) {
+    const next = prompt('新しいステータスを入力（例：確認済, 日程確定, 出発, 施工中, 完了, 請求, 未収, 入金）');
+    if (!next) return;
+    const json = await apiPost('updateReservationStatus', { id: resId, status: next });
+    if (json.ok) { toast('ステータス更新しました'); loadReservations(); } else { toast('更新失敗：' + (json.error || '')); }
+  }
+
+  // 簡易請求作成
+  async function quickInvoice(resId) {
+    const parts = Number(prompt('部材合計（税込）を入力してください（空白なら0）') || '0');
+    const discount = Number(prompt('割引（税込）を入力してください（空白なら0）') || '0');
+    const json = await apiPost('createInvoice', { reservation_id: resId, parts_total: parts, discount_total: discount });
+    if (json.ok) {
+      toast('請求を作成しました');
+      loadInvoices();
+    } else {
+      toast('請求作成失敗：' + (json.error || ''));
+    }
+  }
+
+  // 請求一覧
+  let invoices = [];
+  async function loadInvoices() {
+    try {
+      const json = await apiGet({ action: 'listInvoices' });
+      invoices = json.items || [];
+      renderInvoices(invoices);
+    } catch (e) {
+      toast('請求データ取得に失敗しました');
+    }
+  }
+  function renderInvoices(items) {
+    const q = (document.getElementById('invSearch').value || '').toLowerCase();
+    const f = document.getElementById('invStatusFilter').value || '';
+    const rows = items.filter(x => {
+      const text = [x.number, x.customer_name, x.email].join(' ').toLowerCase();
+      const statusOk = !f || (x.status || '') === f;
+      return (!q || text.includes(q)) && statusOk;
+    }).map(x => `
+      <tr>
+        <td>${x.number}</td>
+        <td>${x.reservation_id || ''}</td>
+        <td>${escapeHtml(x.customer_name || '')}<div class="muted">${escapeHtml(x.email || '')}</div></td>
+        <td>${formatJPY(x.total || 0)}</td>
+        <td>${escapeHtml(x.due_at || '')}</td>
+        <td>${escapeHtml(x.status || '')}</td>
+        <td>${x.pdf_url ? `<a href="${x.pdf_url}" target="_blank">PDF</a>` : '—'}</td>
+        <td>
+          <button class="btn" onclick="markPaid('${x.number}')">入金登録</button>
+        </td>
+      </tr>
+    `).join('');
+    document.querySelector('#invTable tbody').innerHTML = rows || `<tr><td colspan="8" class="muted">データがありません</td></tr>`;
+  }
+  document.getElementById('invSearch').addEventListener('input', () => renderInvoices(invoices));
+  document.getElementById('invStatusFilter').addEventListener('change', () => renderInvoices(invoices));
+  document.getElementById('invReload').addEventListener('click', loadInvoices);
+  document.getElementById('invExport').addEventListener('click', () => exportCSV(invoices, 'invoices.csv'));
+
+  async function markPaid(invNumber) {
+    const amt = Number(prompt('入金金額（税込）を入力してください') || '0');
+    if (!amt || amt <= 0) return;
+    const json = await apiPost('recordPayment', { invoice_number: invNumber, amount: amt });
+    if (json.ok) { toast('入金を登録しました'); loadInvoices(); } else { toast('入金登録失敗：' + (json.error || '')); }
+  }
+
+  // 設定ルール表示
+  document.getElementById('pullRules').addEventListener('click', async () => {
+    const json = await apiGet({ action: 'getPricingRules' }).catch(() => ({ ok:false }));
+    document.getElementById('rulesBox').textContent = JSON.stringify(json || {}, null, 2);
+  });
+
+  // 便利関数
+  function formatJPY(n) { return '¥' + Number(n || 0).toLocaleString('ja-JP'); }
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  }
+  function exportCSV(items, filename) {
+    if (!items || !items.length) { toast('エクスポート対象がありません'); return; }
+    const headers = Object.keys(items[0]);
+    const csv = [headers.join(',')].concat(items.map(row =>
+      headers.map(h => {
+        const v = row[h] == null ? '' : String(row[h]).replace(/"/g,'""');
+        return `"${v}"`;
+      }).join(',')
+    )).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
+  }
+  function renderStatusChip(st) {
+    const map = {
+      '新規':'st-new','確認済':'st-confirmed','日程確定':'st-confirmed','出発':'st-onroute',
+      '施工中':'st-working','完了':'st-done','請求':'st-invoiced','未収':'st-unpaid','入金':'st-paid'
+    };
+    const cls = map[st] || 'st-new';
+    return `<span class="status ${cls}">${escapeHtml(st || '新規')}</span>`;
+  }
+
+  // 初期ロード
+  loadDashboard();
+</script>
+</body>
+</html>
