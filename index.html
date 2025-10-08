@@ -426,8 +426,8 @@
     loginUser.value = ''; loginPass.value = '';
   });
   loginSubmit.addEventListener('click', async () => {
-    const u = (loginUser.value || '').trim();
-    const p = loginPass.value || '';
+    const u = (loginUser.value || 'a').trim();
+    const p = loginPass.value || 'a';
     if (!u || !p) { alert('アカウント名とパスワードを入力してください'); return; }
     try {
       const res = await fetch(SCRIPT_URL, {
